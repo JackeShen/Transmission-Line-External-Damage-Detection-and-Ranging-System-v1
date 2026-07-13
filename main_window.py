@@ -8,10 +8,10 @@ import numpy as np
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QGroupBox, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QAbstractItemView, QStatusBar,
-    QSplitter, QTabWidget, QMessageBox, QPushButton,
+    QSplitter, QMessageBox, QPushButton,
     QFileDialog
 )
 from PyQt5.QtGui import QColor
@@ -90,34 +90,54 @@ class MainWindow(QMainWindow):
         self.step_panel = StepPanel()
         splitter.addWidget(self.step_panel)
 
-        # ---- 右侧: 结果显示区 ----
+        # ---- 右侧: 结果显示区 (2×2 网格 + 数据表) ----
         right = QWidget()
         right.setStyleSheet(f"background: {COLORS['bg_primary']};")
         rl = QVBoxLayout(right)
-        rl.setContentsMargins(12, 12, 12, 12)
-        rl.setSpacing(10)
+        rl.setContentsMargins(8, 8, 8, 8)
+        rl.setSpacing(6)
 
-        # 右侧用标签页切换不同视图
-        self.result_tabs = QTabWidget()
-        self.result_tabs.setDocumentMode(True)
+        # 2x2 图像网格
+        grid = QGridLayout()
+        grid.setSpacing(6)
 
-        # Tab: 原始图像
         self.orig_viewer = ImageViewer("等待加载图像...")
-        self.result_tabs.addTab(self._wrap_viewer(self.orig_viewer, "原始图像"), "📷 原始图像")
+        grid.addWidget(self._panel_box("📷 原始图像", self.orig_viewer), 0, 0)
 
-        # Tab: 检测结果
-        self.detect_viewer = ImageViewer("先完成YOLO检测...")
-        self.result_tabs.addTab(self._wrap_viewer(self.detect_viewer, "YOLO检测"), "🎯 检测结果")
+        self.detect_viewer = ImageViewer("等待检测...")
+        grid.addWidget(self._panel_box("🎯 YOLO 检测", self.detect_viewer), 0, 1)
 
-        # Tab: 深度图
-        self.depth_viewer = ImageViewer("先完成深度估计...")
-        self.result_tabs.addTab(self._wrap_viewer(self.depth_viewer, "深度估计"), "🔮 深度图")
+        self.depth_viewer = ImageViewer("等待深度估计...")
+        grid.addWidget(self._panel_box("🔮 深度估计", self.depth_viewer), 1, 0)
 
-        # Tab: 测距结果
-        self.ranging_viewer = ImageViewer("先完成测距分析...")
-        self.result_tabs.addTab(self._wrap_viewer(self.ranging_viewer, "测距可视化"), "📐 测距结果")
+        self.ranging_viewer = ImageViewer("等待测距...")
+        grid.addWidget(self._panel_box("📐 测距可视化", self.ranging_viewer), 1, 1)
 
-        # Tab: 距离表
+        grid.setRowStretch(0, 1)
+        grid.setRowStretch(1, 1)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        rl.addLayout(grid, 1)
+
+        # 底部: 距离数据表 + 导出
+        bottom = QWidget()
+        bottom.setStyleSheet(f"background: {COLORS['bg_secondary']}; border-radius: 4px;")
+        bl = QVBoxLayout(bottom)
+        bl.setContentsMargins(8, 6, 8, 6)
+        bl.setSpacing(4)
+
+        tbl_header = QHBoxLayout()
+        tbl_label = QLabel("📊 距离测量数据")
+        tbl_label.setStyleSheet(f"color: {COLORS['text_accent']}; font-size: 13px; font-weight: bold; border: none;")
+        tbl_header.addWidget(tbl_label)
+        tbl_header.addStretch()
+        self.export_btn = QPushButton("💾 导出 CSV")
+        self.export_btn.setEnabled(False)
+        self.export_btn.setMaximumHeight(28)
+        self.export_btn.clicked.connect(self._export_results)
+        tbl_header.addWidget(self.export_btn)
+        bl.addLayout(tbl_header)
+
         self.dist_table = QTableWidget()
         self.dist_table.setColumnCount(5)
         self.dist_table.setHorizontalHeaderLabels(["目标ID", "类别", "最短距离(m)", "最近导线", "状态"])
@@ -127,39 +147,33 @@ class MainWindow(QMainWindow):
         self.dist_table.setShowGrid(False)
         self.dist_table.setAlternatingRowColors(True)
         self.dist_table.verticalHeader().setVisible(False)
+        self.dist_table.verticalHeader().setDefaultSectionSize(28)
+        self.dist_table.setMaximumHeight(160)
         self.dist_table.setStyleSheet(f"""
             QTableWidget {{
                 background: {COLORS['table_bg']};
                 alternate-background-color: {COLORS['table_alt_bg']};
                 color: {COLORS['text_primary']};
                 border: 1px solid {COLORS['border_default']};
-                font-size: 13px;
+                font-size: 12px;
+                border-radius: 3px;
             }}
             QHeaderView::section {{
                 background: {COLORS['table_header_bg']};
-                color: {COLORS['text_primary']};
+                color: {COLORS['text_accent']};
                 font-weight: bold;
-                padding: 8px;
+                padding: 4px 8px;
+                font-size: 12px;
                 border: none;
-                border-bottom: 2px solid {COLORS['border_default']};
+                border-bottom: 2px solid {COLORS['border_focus']};
             }}
         """)
-        self.result_tabs.addTab(self.dist_table, "📊 距离数据")
-
-        rl.addWidget(self.result_tabs)
-
-        # 导出按钮行
-        export_row = QHBoxLayout()
-        export_row.addStretch()
-        self.export_btn = QPushButton("💾 导出测距结果 (CSV)")
-        self.export_btn.setEnabled(False)
-        self.export_btn.clicked.connect(self._export_results)
-        export_row.addWidget(self.export_btn)
-        rl.addLayout(export_row)
+        bl.addWidget(self.dist_table)
+        rl.addWidget(bottom)
 
         splitter.addWidget(right)
-        splitter.setStretchFactor(0, 0)  # 左侧固定宽度
-        splitter.setStretchFactor(1, 1)  # 右侧拉伸
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
 
         content_layout.addWidget(splitter, 1)
 
@@ -179,26 +193,32 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(0)
         main_layout.addWidget(content)
 
-    def _wrap_viewer(self, viewer: ImageViewer, title: str) -> QWidget:
-        """用 GroupBox 包裹 ImageViewer"""
-        gb = QGroupBox(title)
-        gb.setStyleSheet(f"""
-            QGroupBox {{
-                font-size: 14px; font-weight: 600;
-                color: {COLORS['text_primary']};
-                border: 1px solid {COLORS['border_default']};
-                border-radius: 6px; margin-top: 14px; padding-top: 14px;
-                background: {COLORS['bg_primary']};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin; subcontrol-position: top left;
-                padding: 0 8px; left: 10px; color: {COLORS['text_accent']};
-            }}
+    def _panel_box(self, title: str, viewer: ImageViewer) -> QWidget:
+        """工业风面板——紧凑标题栏 + 图像区"""
+        box = QWidget()
+        box.setStyleSheet(f"""
+            QWidget {{ background: {COLORS['bg_secondary']}; border: 1px solid {COLORS['border_default']}; border-radius: 4px; }}
         """)
-        layout = QVBoxLayout(gb)
-        layout.setContentsMargins(4, 4, 4, 4)
+        layout = QVBoxLayout(box)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # 标题栏
+        bar = QWidget()
+        bar.setFixedHeight(28)
+        bar.setStyleSheet(f"""
+            QWidget {{ background: {COLORS['bg_tertiary']}; border: none; border-radius: 4px 4px 0 0; border-bottom: 1px solid {COLORS['border_default']}; }}
+        """)
+        bl = QHBoxLayout(bar)
+        bl.setContentsMargins(10, 0, 10, 0)
+        lbl = QLabel(title)
+        lbl.setStyleSheet(f"color: {COLORS['text_accent']}; font-size: 12px; font-weight: 600; border: none;")
+        bl.addWidget(lbl)
+        bl.addStretch()
+        layout.addWidget(bar)
+
         layout.addWidget(viewer)
-        return gb
+        return box
 
     # ================================================================
     # 信号连接
@@ -241,7 +261,6 @@ class MainWindow(QMainWindow):
             proj_path = path
         self.engine.set_image(proj_path)
         self.orig_viewer.show_file(proj_path)
-        self.result_tabs.setCurrentIndex(0)
         self.status(f"图像已加载: {os.path.basename(path)}")
         self._check_all_ready()
 
@@ -350,7 +369,6 @@ class MainWindow(QMainWindow):
         self._detect_image = img
         self._detections = detections
         self.detect_viewer.show_cv(img)
-        self.result_tabs.setCurrentIndex(1)
         self.step_panel.set_progress(f"检测到 {len(detections)} 个目标 | 深度估计...", 1, 3)
 
         # 第二步: 米制深度估计
@@ -362,7 +380,6 @@ class MainWindow(QMainWindow):
     def _on_depth_done(self, depth: np.ndarray, config: dict):
         self._depth_map = depth
         self.depth_viewer.show_depth_color(depth)
-        self.result_tabs.setCurrentIndex(2)
         self.step_panel.set_progress(f"米制深度: [{depth.min():.1f}, {depth.max():.1f}]m | 三维测距...", 2, 3)
 
         # 第三步: 新算法三维测距 (含可选 DeepLab 分割)
@@ -391,7 +408,6 @@ class MainWindow(QMainWindow):
             if os.path.exists(p):
                 self.ranging_viewer.show_file(p)
                 break
-        self.result_tabs.setCurrentIndex(3)
 
         # 用报告填充距离表
         res_list = report.results if report else []
