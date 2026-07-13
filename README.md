@@ -1,6 +1,8 @@
-# 甘肃电网输电线外破检测测距系统 v2.0
+# 电网输电线外破检测测距系统 v2.0
 
 基于机器视觉的输电线路外破目标检测与三维空间测距一体化平台。
+<img width="1882" height="935" alt="屏幕截图 2026-07-13 125511" src="https://github.com/user-attachments/assets/62ca4703-b44e-4407-90d2-4c11e11f23e0" />
+<img width="1896" height="957" alt="屏幕截图 2026-07-13 125449" src="https://github.com/user-attachments/assets/a8226857-c80d-4994-83b5-fea376ac2210" />
 
 ## 功能概述
 
