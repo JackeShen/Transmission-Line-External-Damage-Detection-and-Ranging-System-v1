@@ -1,0 +1,60 @@
+# 模型权重 (太大不上传)
+*.pth
+*.pt
+*.onnx
+*.weights
+*.las
+*.ply
+
+# 检查点
+checkpoints/
+Depth-Anything-V2-main/checkpoints/
+
+# 大型数据
+*.npy
+*.npz
+*.h5
+
+# 视频
+*.mp4
+*.avi
+*.mov
+assets/
+
+# 图像
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tif
+*.tiff
+!new_approach/click_measure_result.png
+
+# 输出目录
+output/
+distance_results/
+depth_output*/
+vis_depth/
+ProjectTest/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.idea/
+.vscode/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+__MACOSX/
+
+# 数据集
+3Ddata/
+images/
+depthForTrain/
+depth_maps*/
+
+# 临时文件
+*.tmp
+*.log
